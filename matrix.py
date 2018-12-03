@@ -7,8 +7,9 @@
 ###########################################################
 
 import math
+from numpy import linalg as la
 import time
-
+from decimal import Decimal
 
 #dense vector representation
 class Vector:
@@ -100,7 +101,7 @@ class Matrix:
             line += 1
 
     #read an mtx file into this matrix, resizing if nessecary
-    def readMTX(self, file_name, symmetric = False):
+    def readMTX(self, file_name, symmetric = False, pattern = False):
         file = open(file_name, 'r')
 
         line = ''
@@ -115,15 +116,26 @@ class Matrix:
         self.w = int(info[1])
         self.h = int(info[0])
         self.data = [[0.0 for _ in range(0,self.w)] for _ in range(0,self.h)]
-        while True:
-            line = file.readline()
-            if line=='':
-                break
+        if not pattern:
+            while True:
+                line = file.readline()
+                if line=='':
+                    break
 
-            data = line.split(' ')
-            self.data[int(data[1])-1][int(data[0])-1] = float(data[2])
-            if symmetric:
-                self.data[int(data[0])-1][int(data[1])-1] = float(data[2])
+                data = line.split(' ')
+                self.data[int(data[1])-1][int(data[0])-1] = float(data[2])
+                if symmetric:
+                    self.data[int(data[0])-1][int(data[1])-1] = float(data[2])
+        else:
+            while True:
+                line = file.readline()
+                if line=='':
+                    break
+
+                data = line.split(' ')
+                self.data[int(data[1])-1][int(data[0])-1] = 1
+                if symmetric:
+                    self.data[int(data[0])-1][int(data[1])-1] = 1
                 
     #write this matrix to a csr file
     def writeCSR(self,file_name):
@@ -260,6 +272,8 @@ class Sparse_Matrix:
     #default constructor, supply with a filename to read from a csr
     def __init__(self, file_name=''):
         if file_name == '':
+            self.w = 0
+            self.h = 0
             return
 
         file = open(file_name, "r")
@@ -425,9 +439,11 @@ class Sparse_Matrix:
         #print('V:',V.data)
 
         T = Sparse_Matrix()
-        T.counts = [0,2] + [2+n*3 for n in range(0,c-2)] + [c*3-2]
+        T.counts = [0,2] + [2+n*3 for n in range(1,c-1)] + [c*3-2]
         T.entries = [0 for _ in range(0,c*3-2)]
         T.offsets = [0 for _ in range(0,c*3-2)]
+        T.w = c
+        T.h = c
 
         T.entries[0] = a[0]
         T.offsets[0] = 0
@@ -438,19 +454,55 @@ class Sparse_Matrix:
             T.offsets[n*3-2] = n
             T.offsets[n*3-1] = n-1
             T.offsets[n*3] = n
-
         #VAV = V.t().leftMultiplyMatrix(self).leftMultiplyMatrix(V)
         return (V,T)
+    def dense(self):
+        product = Matrix(self.w,self.h)
+        #write entries to dense format
+        p = 0
+        line = -1
+        for limit in self.counts:
+            while p < limit:
+                product.data[line][self.offsets[p]] = self.entries[p]
+                p += 1
+            line += 1
+        return product
 
+def mag(n):
+    return math.sqrt(n.real ** 2 + n.imag ** 2)
 
+def rowDisplay(target, y):
+    n = []
+    for x in target[y]:
+        if mag(x) < .001:
+            n.append(0)
+        else:
+            n.append("({:.2E}+{:.2E}j)".format(Decimal(x.real),Decimal(x.imag)))
+    print n
 
+def colDisplay(target, x):
+    n = []
+    for y in target:
+        if mag(y[x]) < .001:
+            n.append(0)
+        else:
+            n.append("({:.2E}+{:.2E}j)".format(Decimal(y[x].real),Decimal(y[x].imag)))
+    print n
+
+def sortValues(v):
+    ids = [x for x in range(0,len(v))]
+    def srt(a):
+        return mag(v[a])
+
+    ids.sort(key=srt)
+    return ids
 
 if __name__ == "__main__":
     dense = Matrix()
-    dense.readMTX('datas/494_bus.mtx', True)
-    dense.t().writeCSR('output.csr')
+    dense.readMTX('../datas/1138_bus.mtx', True, True)
+    dense.t().writeCSR('../output.csr')
 
-    sparse = Sparse_Matrix('output.csr')
+    sparse = Sparse_Matrix('../output.csr')
 
     test = Vector(dense.w)
     test.data = [n-3 for n in range(0,dense.w)]
@@ -477,9 +529,9 @@ if __name__ == "__main__":
     print("Dense Time:", time_end - time_mid)
     print('\n')
 
-    test_sparse = Sparse_Matrix('output.csr')
+    test_sparse = Sparse_Matrix('../output.csr')
     test_dense = Matrix()
-    test_dense.readCSR('output.csr')
+    test_dense.readCSR('../output.csr')
 
     time_start = time.time()
     sparse_result = sparse.leftMultiplyMatrix(test_sparse)
@@ -508,3 +560,21 @@ if __name__ == "__main__":
     print("Sparse Time:", time_mid - time_start)
     print("Dense Time:", time_end - time_mid)
     print('\n')
+
+    print('Lanczos accuraccy')
+    v, w = la.eig(dense.data)
+    ids = sortValues(v)
+    print 'real        eigenvectors:', v[ids][-5:]
+    print 'real        eigenvectors:', v[ids][:5]
+    #for x in range(0,5):
+        #colDisplay(w,-(x+1))
+
+    for i in range(5,16,5):
+        lanczos_sparse = Vector(sparse.w)
+        lanczos_sparse[0] = 1.0
+        sparse_result = sparse.lanczos(lanczos_sparse, i)
+        T = sparse_result[1].dense()
+        v, w = la.eig(T.data)
+        ids = sortValues(v)
+        print i, ' lanczos eigenvectors:', v[ids][-5:]
+        print i, ' lanczos eigenvectors:', v[ids][:5]
