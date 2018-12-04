@@ -6,10 +6,7 @@
 # In the future this will support complex matricies
 ###########################################################
 
-import math
-from numpy import linalg as la
-import time
-from decimal import Decimal
+from math import sqrt
 
 #dense vector representation
 class Vector:
@@ -49,7 +46,7 @@ class Vector:
         for y in range(0,self.h):
             total += self.data[y] * self.data[y]
 
-        return math.sqrt(total)
+        return sqrt(total)
 
     #sets the norm of the vector to 1, without changing the direction
     def normalize(self):
@@ -170,14 +167,14 @@ class Matrix:
             for x in range(0,self.w):
                 transpose.data[x][y] = self.data[y][x]
         return transpose
-    def leftMultiplyMatrix(self, target):
+    def leftMultiplyMatrix(self, target, meter=False):
         if self.w != target.h:
             raise ArithmeticError('Size mismatch during matrix.leftMultiplyMatrix')
 
         result = Matrix(target.w, self.h)
         for y in range(0,self.h):
-            if y%100 == 0:
-                print(y)
+            if y%100 == 0 and meter:
+                print('rows complete: ', y)
             for x in range(0,target.w):
                 row_sum = 0
                 for t in range(0,self.w):
@@ -185,12 +182,14 @@ class Matrix:
                 result.data[y][x] = row_sum
 
         return result
-    def leftMultiplyVector(self, target):
+    def leftMultiplyVector(self, target, meter=False):
         if self.w != target.h:
             raise ArithmeticError('Size mismatch during matrix.leftMultiplyVector')
 
         result = Vector(target.h)
         for y in range(0,self.h):
+            if y%100 == 0 and meter:
+                print('rows complete: ', y)
             row_sum = 0
             for x in range(0,self.w):
                 row_sum += self.data[y][x] * target.data[x]
@@ -467,114 +466,3 @@ class Sparse_Matrix:
                 p += 1
             line += 1
         return product
-
-def mag(n):
-    return math.sqrt(n.real ** 2 + n.imag ** 2)
-
-def rowDisplay(target, y):
-    n = []
-    for x in target[y]:
-        if mag(x) < .001:
-            n.append(0)
-        else:
-            n.append("({:.2E}+{:.2E}j)".format(Decimal(x.real),Decimal(x.imag)))
-    print n
-
-def colDisplay(target, x):
-    n = []
-    for y in target:
-        if mag(y[x]) < .001:
-            n.append(0)
-        else:
-            n.append("({:.2E}+{:.2E}j)".format(Decimal(y[x].real),Decimal(y[x].imag)))
-    print n
-
-def sortValues(v):
-    ids = [x for x in range(0,len(v))]
-    def srt(a):
-        return mag(v[a])
-
-    ids.sort(key=srt)
-    return ids
-
-if __name__ == "__main__":
-    dense = Matrix()
-    dense.readMTX('../datas/1138_bus.mtx', True, True)
-    dense.t().writeCSR('../output.csr')
-
-    sparse = Sparse_Matrix('../output.csr')
-
-    test = Vector(dense.w)
-    test.data = [n-3 for n in range(0,dense.w)]
-
-    time_start = time.time()
-    sparse_result = sparse.leftMultiplyVector(test)
-    time_mid = time.time()
-    dense_result = dense.leftMultiplyVector(test)
-    time_end = time.time()
-
-    print('Vector Multiplication')
-    print("Sparse Time:", time_mid - time_start)
-    print("Dense Time:", time_end - time_mid)
-    print('\n')
-
-    time_start = time.time()
-    sparse_result = sparse.t()
-    time_mid = time.time()
-    dense_result = dense.t()
-    time_end = time.time()
-
-    print('Calculate Transform')
-    print("Sparse Time:", time_mid - time_start)
-    print("Dense Time:", time_end - time_mid)
-    print('\n')
-
-    test_sparse = Sparse_Matrix('../output.csr')
-    test_dense = Matrix()
-    test_dense.readCSR('../output.csr')
-
-    time_start = time.time()
-    sparse_result = sparse.leftMultiplyMatrix(test_sparse)
-    time_mid = time.time()
-    #dense_result = dense.leftMultiplyMatrix(test_dense)
-    time_end = time.time()
-
-    print('Matrix Multiplication')
-    print("Sparse Time:", time_mid - time_start)
-    #print("Dense Time:", time_end - time_mid)
-    print("Dense takes to long, don't bother profiling")
-    print('\n')
-
-    lanczos_sparse = Vector(sparse.w)
-    lanczos_dense = Vector(sparse.w)
-    lanczos_sparse[0] = 1.0
-    lanczos_dense[0] = 1.0
-
-    time_start = time.time()
-    sparse_result = sparse.lanczos(lanczos_sparse, 10)
-    time_mid = time.time()
-    dense_result = dense.lanczos(lanczos_dense, 10)
-    time_end = time.time()
-
-    print('Lanczos Calculation')
-    print("Sparse Time:", time_mid - time_start)
-    print("Dense Time:", time_end - time_mid)
-    print('\n')
-
-    print('Lanczos accuraccy')
-    v, w = la.eig(dense.data)
-    ids = sortValues(v)
-    print 'real        eigenvectors:', v[ids][-5:]
-    print 'real        eigenvectors:', v[ids][:5]
-    #for x in range(0,5):
-        #colDisplay(w,-(x+1))
-
-    for i in range(5,16,5):
-        lanczos_sparse = Vector(sparse.w)
-        lanczos_sparse[0] = 1.0
-        sparse_result = sparse.lanczos(lanczos_sparse, i)
-        T = sparse_result[1].dense()
-        v, w = la.eig(T.data)
-        ids = sortValues(v)
-        print i, ' lanczos eigenvectors:', v[ids][-5:]
-        print i, ' lanczos eigenvectors:', v[ids][:5]
