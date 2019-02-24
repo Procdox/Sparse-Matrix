@@ -6,7 +6,7 @@ The dense matrix allows for reading from mtx or csr files, with in-line paramete
 
 The sparse representation allows for reading from csr files.
 
-This project does NOT include mtx/csr files, but test file target paths can be specified in any test file through use of the "Profile_Target" variable.
+This project does NOT include mtx/csr files, but test file target paths can be specified through the first command line parameter.
 
 # Operations Implementation
 The project utilizes python lists only for storing data within either format. Dense algorithms operate exactly as one would naively expect. All sparse operations operate by iterating across rows nested in iterating across columns. For multiplication, the transform is calculated for the right matrix, then both the left and right are iterated across simultaneously.

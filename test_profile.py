@@ -6,7 +6,12 @@ from matrix import Vector, Matrix, Sparse_Matrix
 
 
 #target mtx file to profile with
-Profile_Target = '../datas/1138_bus.mtx'
+if len(sys.argv > 1):
+  Profile_Target = sys.argv[1]
+else:
+  print('Please supply a target data file')
+  sys.exit()
+  
 
 
 # Read in from MTX and translate to CSR
