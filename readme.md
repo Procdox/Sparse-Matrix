@@ -11,6 +11,12 @@ This project does NOT include mtx/csr files, but test file target paths can be s
 # Operations Implementation
 The project utilizes python lists only for storing data within either format. Dense algorithms operate exactly as one would naively expect. All sparse operations operate by iterating across rows nested in iterating across columns. For multiplication, the transform is calculated for the right matrix, then both the left and right are iterated across simultaneously.
 
+# Usage
+Note that, as this library is primarily aimed at profiling the difference in cost between matrix formats, and demonstrating the implementation of the Lanczos algorithm, it does not provide general operators intended for manipulation of matricies. I would recommend you stick with the popular Eigen library.
+
+The main classes are Matrix and SparseMatrix of matrix.py. Matrix can be loaded from either MTX or CSR formats via the methods readMTX and readCSR respectively. SparseMatrix must be constructed with a CSR format file though.
+See test_profile or test_lanczos for an example usage of the classes.
+
 # Lanczos Implementation
 The other major component of this project is the implementation of Lanczos. This algorithm can be performed with either matrix representation class. It of course is much faster with Sparse_Matrix, when appropriate. 
 
